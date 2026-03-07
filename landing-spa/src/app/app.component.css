@@ -1,0 +1,91 @@
+.shell-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 1.5rem;
+  height: 56px;
+  background-color: #0f3460;
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+
+.shell-header__brand {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.shell-header__logo {
+  font-size: 1.25rem;
+  color: #0078d4;
+}
+
+.shell-header__title {
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.shell-header__nav {
+  display: flex;
+  gap: 1.5rem;
+}
+
+.shell-header__nav a {
+  color: #cdd6f4;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: color 0.15s;
+}
+
+.shell-header__nav a:hover,
+.shell-header__nav a.active {
+  color: #ffffff;
+  text-decoration: none;
+  border-bottom: 2px solid #0078d4;
+  padding-bottom: 2px;
+}
+
+.shell-header__actions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.btn {
+  padding: 0.4rem 1rem;
+  border-radius: 4px;
+  border: none;
+  font-size: 0.875rem;
+  font-weight: 600;
+  transition: background-color 0.15s;
+}
+
+.btn--primary {
+  background-color: #0078d4;
+  color: #ffffff;
+}
+
+.btn--primary:hover {
+  background-color: #006cbe;
+}
+
+.btn--secondary {
+  background-color: transparent;
+  color: #cdd6f4;
+  border: 1px solid #cdd6f4;
+}
+
+.btn--secondary:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.shell-content {
+  margin-top: 56px;
+  padding: 2rem 1.5rem;
+  min-height: calc(100vh - 56px);
+}

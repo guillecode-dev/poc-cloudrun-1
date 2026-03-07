@@ -1,0 +1,291 @@
+name: CI/CD — Build & Deploy to Cloud Run
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:   # Permite ejecución manual desde GitHub UI
+
+# Permisos mínimos para Workload Identity Federation
+permissions:
+  contents: read
+  id-token: write   # Requerido por WIF para obtener el OIDC token
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Variables globales del workflow
+# ─────────────────────────────────────────────────────────────────────────────
+env:
+  REGISTRY: ${{ secrets.GCP_REGION }}-docker.pkg.dev
+  REPO: ${{ secrets.GCP_PROJECT }}/poc-repos
+
+# =============================================================================
+# JOB 1: lint
+# Verifica typecheck de los tres servicios en paralelo
+# =============================================================================
+jobs:
+  lint:
+    name: Lint & Typecheck (${{ matrix.service }})
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: landing-spa
+            dir: landing-spa
+            cmd: npx tsc --noEmit
+          - service: app-demo-spa
+            dir: app-demo-spa
+            cmd: npx tsc --noEmit
+          - service: bff-spa
+            dir: bff-spa
+            cmd: npm run typecheck
+
+    defaults:
+      run:
+        working-directory: ${{ matrix.dir }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: ${{ matrix.dir }}/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: ${{ matrix.cmd }}
+
+# =============================================================================
+# JOB 2: test
+# Ejecuta tests unitarios del BFF (único servicio con tests)
+# =============================================================================
+  test:
+    name: Unit Tests (bff-spa)
+    runs-on: ubuntu-latest
+    needs: lint
+
+    defaults:
+      run:
+        working-directory: bff-spa
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: bff-spa/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests with coverage
+        run: npm run test:coverage
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report
+          path: bff-spa/coverage/
+          retention-days: 7
+
+# =============================================================================
+# JOB 3: build-docker
+# Construye y publica las imágenes en Artifact Registry
+# =============================================================================
+  build-docker:
+    name: Build & Push Docker (${{ matrix.service }})
+    runs-on: ubuntu-latest
+    needs: test
+
+    outputs:
+      landing-spa-image:  ${{ steps.meta.outputs.image }}
+      app-demo-spa-image: ${{ steps.meta.outputs.image }}
+      bff-spa-image:      ${{ steps.meta.outputs.image }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [landing-spa, app-demo-spa, bff-spa]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ── Autenticación via Workload Identity Federation ──────────────────────
+      - name: Authenticate to GCP (WIF)
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SA }}
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ env.REGISTRY }} --quiet
+
+      # ── Build y push ────────────────────────────────────────────────────────
+      - name: Set image metadata
+        id: meta
+        run: |
+          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-8)
+          IMAGE="${{ env.REGISTRY }}/${{ env.REPO }}/${{ matrix.service }}"
+          echo "image=${IMAGE}" >> "$GITHUB_OUTPUT"
+          echo "tag=${IMAGE}:${SHORT_SHA}"   >> "$GITHUB_OUTPUT"
+          echo "latest=${IMAGE}:latest"      >> "$GITHUB_OUTPUT"
+          echo "short_sha=${SHORT_SHA}"      >> "$GITHUB_OUTPUT"
+
+      - name: Build Docker image
+        run: |
+          docker build \
+            --tag "${{ steps.meta.outputs.tag }}" \
+            --tag "${{ steps.meta.outputs.latest }}" \
+            --label "org.opencontainers.image.revision=${{ github.sha }}" \
+            --label "org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}" \
+            --cache-from "${{ steps.meta.outputs.latest }}" \
+            ./${{ matrix.service }}
+
+      - name: Push Docker image to Artifact Registry
+        run: |
+          docker push "${{ steps.meta.outputs.tag }}"
+          docker push "${{ steps.meta.outputs.latest }}"
+
+      - name: Output image digest
+        run: |
+          docker inspect --format='{{index .RepoDigests 0}}' \
+            "${{ steps.meta.outputs.tag }}"
+
+# =============================================================================
+# JOB 4: deploy-cloud-run
+# Despliega los 3 servicios en Cloud Run (secuencial: BFF primero)
+# =============================================================================
+  deploy-cloud-run:
+    name: Deploy to Cloud Run (${{ matrix.service }})
+    runs-on: ubuntu-latest
+    needs: build-docker
+    environment: production
+
+    strategy:
+      # Despliegue secuencial: BFF antes que las SPAs
+      max-parallel: 1
+      matrix:
+        include:
+          - service: bff-spa
+            port: 8080
+            allow_unauthenticated: false   # BFF solo accesible desde SPAs / LB
+          - service: landing-spa
+            port: 8080
+            allow_unauthenticated: true
+          - service: app-demo-spa
+            port: 8080
+            allow_unauthenticated: true
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to GCP (WIF)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SA }}
+
+      - name: Setup gcloud CLI
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ secrets.GCP_PROJECT }}
+
+      - name: Compute image tag
+        id: image
+        run: |
+          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-8)
+          echo "ref=${{ env.REGISTRY }}/${{ env.REPO }}/${{ matrix.service }}:${SHORT_SHA}" \
+            >> "$GITHUB_OUTPUT"
+
+      # ── Deploy BFF-SPA (con secretos de Cloud Run) ──────────────────────────
+      - name: Deploy bff-spa to Cloud Run
+        if: matrix.service == 'bff-spa'
+        run: |
+          gcloud run deploy bff-spa \
+            --image "${{ steps.image.outputs.ref }}" \
+            --region "${{ secrets.GCP_REGION }}" \
+            --platform managed \
+            --port ${{ matrix.port }} \
+            --no-allow-unauthenticated \
+            --service-account "${{ secrets.WIF_SA }}" \
+            --set-secrets "\
+              AUTH_TENANT=AUTH_TENANT:latest,\
+              AUTH_AUTHORITY=AUTH_AUTHORITY:latest,\
+              AUTH_AUDIENCE=AUTH_AUDIENCE:latest,\
+              AUTH_CLIENT_ID=AUTH_CLIENT_ID:latest,\
+              FIRESTORE_PROJECT_ID=FIRESTORE_PROJECT_ID:latest,\
+              DB_INSTANCE=DB_INSTANCE:latest,\
+              DB_NAME=DB_NAME:latest,\
+              DB_USER=DB_USER:latest,\
+              DB_PASSWORD=DB_PASSWORD:latest,\
+              ALLOWED_ORIGINS=ALLOWED_ORIGINS:latest" \
+            --set-env-vars "\
+              NODE_ENV=production,\
+              SESSION_DURATION_MIN=60,\
+              SESSION_SLIDING=true,\
+              SESSION_MAX_MIN=240" \
+            --min-instances 0 \
+            --max-instances 10 \
+            --cpu 1 \
+            --memory 512Mi \
+            --timeout 30s \
+            --concurrency 80
+
+      # ── Deploy Landing SPA ──────────────────────────────────────────────────
+      - name: Deploy landing-spa to Cloud Run
+        if: matrix.service == 'landing-spa'
+        run: |
+          gcloud run deploy landing-spa \
+            --image "${{ steps.image.outputs.ref }}" \
+            --region "${{ secrets.GCP_REGION }}" \
+            --platform managed \
+            --port ${{ matrix.port }} \
+            --allow-unauthenticated \
+            --min-instances 0 \
+            --max-instances 5 \
+            --cpu 1 \
+            --memory 256Mi \
+            --timeout 10s \
+            --concurrency 1000
+
+      # ── Deploy App Demo SPA ─────────────────────────────────────────────────
+      - name: Deploy app-demo-spa to Cloud Run
+        if: matrix.service == 'app-demo-spa'
+        run: |
+          gcloud run deploy app-demo-spa \
+            --image "${{ steps.image.outputs.ref }}" \
+            --region "${{ secrets.GCP_REGION }}" \
+            --platform managed \
+            --port ${{ matrix.port }} \
+            --allow-unauthenticated \
+            --min-instances 0 \
+            --max-instances 5 \
+            --cpu 1 \
+            --memory 256Mi \
+            --timeout 10s \
+            --concurrency 1000
+
+      # ── URL del servicio desplegado ─────────────────────────────────────────
+      - name: Get deployed service URL
+        run: |
+          URL=$(gcloud run services describe ${{ matrix.service }} \
+            --region "${{ secrets.GCP_REGION }}" \
+            --format "value(status.url)")
+          echo "### Deployed: ${{ matrix.service }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "URL: ${URL}" >> "$GITHUB_STEP_SUMMARY"
+          echo "Image: ${{ steps.image.outputs.ref }}" >> "$GITHUB_STEP_SUMMARY"

@@ -1,0 +1,49 @@
+/* Global styles */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html, body {
+  height: 100%;
+  margin: 0;
+  font-family: Roboto, 'Segoe UI', sans-serif;
+  background-color: #f5f7fa;
+  color: #1a1a2e;
+}
+
+a {
+  color: #0078d4;
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+/* Tabla Material — ancho completo */
+.mat-mdc-table {
+  width: 100%;
+}
+
+/* Card contenedor estándar */
+.page-card {
+  background: #ffffff;
+  border-radius: 8px;
+  padding: 1.5rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  margin-bottom: 1.5rem;
+}
+
+/* Estado vacío / error */
+.state-message {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1rem 0;
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.state-message.error {
+  color: #b00020;
+}

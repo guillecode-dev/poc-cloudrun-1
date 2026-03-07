@@ -1,0 +1,30 @@
+# Dependencias
+node_modules/
+
+# Build output
+dist/
+out-tsc/
+
+# Angular cache
+.angular/
+
+# Environment — nunca subir valores reales
+# src/environments/environment.ts  <-- sí se versiona con placeholders
+# src/environments/environment.prod.ts  <-- sí se versiona (lee window.__env en runtime)
+
+# IDEs
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
