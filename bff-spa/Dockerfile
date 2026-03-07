@@ -7,7 +7,7 @@ WORKDIR /app
 
 # Instalar dependencias (incluye devDeps para tsc)
 COPY package.json package-lock.json* ./
-RUN npm ci --ignore-scripts
+RUN npm install --ignore-scripts
 
 # Copiar fuentes y compilar
 COPY tsconfig.json ./
@@ -27,7 +27,7 @@ WORKDIR /app
 
 # Instalar solo deps de producción
 COPY package.json package-lock.json* ./
-RUN npm ci --omit=dev --ignore-scripts \
+RUN npm install --omit=dev --ignore-scripts \
  && npm cache clean --force
 
 # Copiar artefactos compilados

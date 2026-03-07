@@ -7,7 +7,7 @@ WORKDIR /app
 
 # Instalar dependencias primero (mejor uso de capa de cache)
 COPY package.json package-lock.json* ./
-RUN npm ci --ignore-scripts
+RUN npm install --ignore-scripts
 
 # Copiar fuentes y compilar en modo producción
 COPY . .
