@@ -103,7 +103,10 @@ export function appInitializerFactory(
   sessionService: SessionService
 ): () => Promise<void> {
   return async () => {
-    // 1. Procesar respuesta OAuth (code + state) si viene de un redirect
+    // 1. Inicializar MSAL antes de cualquier otra llamada
+    await msalService.instance.initialize();
+
+    // 2. Procesar respuesta OAuth (code + state) si viene de un redirect
     await msalService.instance.handleRedirectPromise();
 
     // 2. Establecer cuenta activa si hay sesión
