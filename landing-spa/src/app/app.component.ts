@@ -11,7 +11,8 @@ import {
   MsalGuardConfiguration,
 } from '@azure/msal-angular';
 import { InteractionStatus, RedirectRequest } from '@azure/msal-browser';
-import { environment } from '../environments/environment';
+
+import { MenuService, MenuItem } from './services/menu.service';
 
 @Component({
   selector: 'app-root',
@@ -22,9 +23,7 @@ import { environment } from '../environments/environment';
 })
 export class AppComponent implements OnInit, OnDestroy {
   isLoggedIn = false;
-
-  /** URL de la Demo App (configurada en environment) */
-  readonly demoAppUrl = environment.demoAppUrl;
+  menuItems: MenuItem[] = [];
 
   private readonly destroy$ = new Subject<void>();
 
@@ -32,7 +31,8 @@ export class AppComponent implements OnInit, OnDestroy {
     @Inject(MSAL_GUARD_CONFIG) private msalGuardConfig: MsalGuardConfiguration,
     @Inject(DOCUMENT) private document: Document,
     private msalService: MsalService,
-    private broadcastService: MsalBroadcastService
+    private broadcastService: MsalBroadcastService,
+    private menuService: MenuService,
   ) {}
 
   ngOnInit(): void {
@@ -49,6 +49,11 @@ export class AppComponent implements OnInit, OnDestroy {
         takeUntil(this.destroy$)
       )
       .subscribe(() => this.syncLoginState());
+
+    // Suscribir al menú dinámico (se popula tras el handshake en APP_INITIALIZER)
+    this.menuService.menuItems$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(items => (this.menuItems = items));
   }
 
   ngOnDestroy(): void {
@@ -73,6 +78,11 @@ export class AppComponent implements OnInit, OnDestroy {
       account,
       postLogoutRedirectUri: this.document.location.origin,
     });
+  }
+
+  get userName(): string {
+    const account = this.msalService.instance.getActiveAccount();
+    return account?.name ?? account?.username ?? '';
   }
 
   private syncLoginState(): void {

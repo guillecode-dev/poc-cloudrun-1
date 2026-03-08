@@ -13,6 +13,7 @@ import healthRoutes  from './routes/health.routes';
 import sessionRoutes from './routes/session.routes';
 import authzRoutes   from './routes/authz.routes';
 import apiRoutes     from './routes/api.routes';
+import menuRoutes    from './routes/menu.routes';
 
 export function createApp(): Application {
   const app = express();
@@ -62,6 +63,7 @@ export function createApp(): Application {
   app.use('/session',  sessionRoutes);
   app.use('/authz',    authzRoutes);
   app.use('/api',      apiRoutes);
+  app.use('/api/menu', menuRoutes);
 
   // ── 404 ───────────────────────────────────────────────────────────────────
   app.use(notFoundHandler);

@@ -14,9 +14,11 @@ export const authInterceptor: HttpInterceptorFn = (
   req: HttpRequest<unknown>,
   next: HttpHandlerFn
 ) => {
-  // Solo interceptar rutas del BFF que comiencen con /api/
-  const targetApi = `${environment.bffUrl}/api/`;
-  if (!req.url.startsWith(targetApi)) {
+  // Solo interceptar rutas del BFF (/api/ y /session/)
+  const bffBase = environment.bffUrl;
+  const isBffCall = req.url.startsWith(`${bffBase}/api/`) ||
+                    req.url.startsWith(`${bffBase}/session/`);
+  if (!isBffCall) {
     return next(req);
   }
 

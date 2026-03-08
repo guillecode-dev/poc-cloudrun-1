@@ -18,8 +18,9 @@
       "prefix": "app",
       "architect": {
         "build": {
-          "builder": "@angular-devkit/build-angular:application",
+          "builder": "@angular-architects/native-federation:build",
           "options": {
+            "federationConfig": "federation.config.js",
             "outputPath": "dist/app-demo-spa",
             "index": "src/index.html",
             "browser": "src/main.ts",
@@ -63,7 +64,7 @@
           "defaultConfiguration": "production"
         },
         "serve": {
-          "builder": "@angular-devkit/build-angular:dev-server",
+          "builder": "@angular-architects/native-federation:serve",
           "configurations": {
             "production": { "buildTarget": "app-demo-spa:build:production" },
             "development": { "buildTarget": "app-demo-spa:build:development" }

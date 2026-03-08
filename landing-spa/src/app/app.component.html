@@ -4,11 +4,28 @@
     <span class="shell-header__title">Corp PoC Cloud Run</span>
   </div>
 
+  <!-- Menú dinámico: opciones vienen de Cloud SQL (via BFF + handshake de sesión) -->
   <nav class="shell-header__nav" aria-label="Navegación principal">
-    <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Home</a>
-    <a routerLink="/profile" routerLinkActive="active" *ngIf="isLoggedIn">Profile</a>
-    <a [href]="demoAppUrl" target="_blank" rel="noopener noreferrer">Demo App</a>
+    <ng-container *ngIf="menuItems.length > 0; else staticNav">
+      <a
+        *ngFor="let item of menuItems"
+        [routerLink]="item.route"
+        routerLinkActive="active"
+        [routerLinkActiveOptions]="{ exact: item.route === '/' }">
+        {{ item.label }}
+      </a>
+    </ng-container>
+
+    <!-- Menú estático de fallback (antes del login / si falla el handshake) -->
+    <ng-template #staticNav>
+      <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Inicio</a>
+      <a routerLink="/profile" routerLinkActive="active" *ngIf="isLoggedIn">Perfil</a>
+    </ng-template>
   </nav>
+
+  <div class="shell-header__user" *ngIf="isLoggedIn && userName">
+    <span class="shell-header__username" title="Usuario autenticado">{{ userName }}</span>
+  </div>
 
   <div class="shell-header__actions">
     <button *ngIf="!isLoggedIn" class="btn btn--primary" (click)="login()">

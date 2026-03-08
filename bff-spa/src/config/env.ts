@@ -38,8 +38,8 @@ export const config = {
   dbHost: optional('DB_HOST', 'localhost'),
   dbPort: parseInt(optional('DB_PORT', '5432'), 10),
 
-  // Sesión
-  sessionDurationMin: parseInt(optional('SESSION_DURATION_MIN', '60'), 10),
+  // Sesión — la duración real se lee desde app_config en Cloud SQL al crear cada sesión
+  sessionDurationMin: parseInt(optional('SESSION_DURATION_MIN', '30'), 10),
   sessionSliding: optional('SESSION_SLIDING', 'true') === 'true',
   sessionMaxMin: parseInt(optional('SESSION_MAX_MIN', '240'), 10),
 

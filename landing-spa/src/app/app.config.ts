@@ -1,7 +1,17 @@
-import { ApplicationConfig, importProvidersFrom, APP_INITIALIZER } from '@angular/core';
+import {
+  ApplicationConfig,
+  importProvidersFrom,
+  APP_INITIALIZER,
+} from '@angular/core';
 import { provideRouter } from '@angular/router';
-import { provideHttpClient, withInterceptors, withInterceptorsFromDi } from '@angular/common/http';
+import {
+  provideHttpClient,
+  withInterceptors,
+  withInterceptorsFromDi,
+  HTTP_INTERCEPTORS,
+} from '@angular/common/http';
 import { BrowserModule } from '@angular/platform-browser';
+import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
 
 import {
   MsalModule,
@@ -21,15 +31,15 @@ import {
   LogLevel,
   IPublicClientApplication,
 } from '@azure/msal-browser';
-import { HTTP_INTERCEPTORS } from '@angular/common/http';
+import { firstValueFrom } from 'rxjs';
 
 import { routes } from './app.routes';
 import { authInterceptor } from './interceptors/auth.interceptor';
+import { SessionService } from './services/session.service';
 import { environment } from '../environments/environment';
 
 // ---------------------------------------------------------------------------
 // MSAL Public Client Application
-// cacheLocation: 'memory' — NUNCA localStorage ni sessionStorage
 // ---------------------------------------------------------------------------
 export function msalInstanceFactory(): IPublicClientApplication {
   return new PublicClientApplication({
@@ -40,7 +50,7 @@ export function msalInstanceFactory(): IPublicClientApplication {
       postLogoutRedirectUri: environment.authRedirectUri,
     },
     cache: {
-      cacheLocation: 'sessionStorage', // usamos sessionStorage como fallback pero sin tokens persistentes
+      cacheLocation: 'sessionStorage',
       storeAuthStateInCookie: false,
     },
     system: {
@@ -58,7 +68,7 @@ export function msalInstanceFactory(): IPublicClientApplication {
 }
 
 // ---------------------------------------------------------------------------
-// MsalGuard configuration — redirect flow con PKCE (default en MSAL v3)
+// MsalGuard — redirect flow con PKCE
 // ---------------------------------------------------------------------------
 export function msalGuardConfigFactory(): MsalGuardConfiguration {
   return {
@@ -71,16 +81,50 @@ export function msalGuardConfigFactory(): MsalGuardConfiguration {
 }
 
 // ---------------------------------------------------------------------------
-// MsalInterceptor configuration — protege rutas del BFF
+// MsalInterceptor — protege /api/* y /session/* del BFF
 // ---------------------------------------------------------------------------
 export function msalInterceptorConfigFactory(): MsalInterceptorConfiguration {
   const protectedResourceMap = new Map<string, string[] | null>([
     [`${environment.bffUrl}/api/`, environment.authScopes],
+    [`${environment.bffUrl}/session/`, environment.authScopes],
   ]);
 
   return {
     interactionType: InteractionType.Redirect,
     protectedResourceMap,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// APP_INITIALIZER — inicializa MSAL y ejecuta el handshake con el BFF
+// Lee el menú y la duración de sesión desde Cloud SQL y los guarda en Firestore.
+// ---------------------------------------------------------------------------
+export function appInitializerFactory(
+  msalService: MsalService,
+  sessionService: SessionService
+): () => Promise<void> {
+  return async () => {
+    // 1. Inicializar MSAL (obligatorio en MSAL v3 antes de cualquier llamada)
+    await msalService.instance.initialize();
+
+    // 2. Procesar la respuesta OAuth/PKCE si viene de un redirect de Azure AD
+    await msalService.instance.handleRedirectPromise();
+
+    // 3. Establecer cuenta activa si hay sesión
+    const accounts = msalService.instance.getAllAccounts();
+    if (accounts.length === 0) return;
+
+    if (!msalService.instance.getActiveAccount()) {
+      msalService.instance.setActiveAccount(accounts[0]);
+    }
+
+    // 4. Handshake con el BFF: obtiene menú (Cloud SQL) + crea sesión (Firestore)
+    try {
+      await firstValueFrom(sessionService.handshake());
+    } catch (err) {
+      // El handshake es best-effort; no bloqueamos la carga si falla
+      console.warn('[appInitializer] Session handshake failed, continuing', err);
+    }
   };
 }
 
@@ -93,7 +137,10 @@ export const appConfig: ApplicationConfig = {
 
     provideRouter(routes),
 
-    // HTTP client con interceptores funcionales + soporte de interceptores DI (MsalInterceptor)
+    // Animaciones async (necesarias para Angular Material en componentes remotos)
+    provideAnimationsAsync(),
+
+    // HTTP client: interceptor funcional propio + soporte DI para MsalInterceptor
     provideHttpClient(
       withInterceptors([authInterceptor]),
       withInterceptorsFromDi()
@@ -120,10 +167,12 @@ export const appConfig: ApplicationConfig = {
       useClass: MsalInterceptor,
       multi: true,
     },
+
+    // APP_INITIALIZER: inicializa MSAL + handshake de sesión al arrancar
     {
       provide: APP_INITIALIZER,
-      useFactory: (msalService: MsalService) => () => msalService.instance.initialize(),
-      deps: [MsalService],
+      useFactory: appInitializerFactory,
+      deps: [MsalService, SessionService],
       multi: true,
     },
   ],

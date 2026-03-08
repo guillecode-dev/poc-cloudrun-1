@@ -80,8 +80,10 @@ export class AppComponent implements OnInit, OnDestroy {
       this.msalService.instance.setActiveAccount(accounts[0]);
     }
 
-    // Redirigir a /items tras login si estamos en la raíz
-    if (this.isLoggedIn && this.router.url === '/') {
+    // Navegar siempre desde la raíz a /items.
+    // Si el usuario está autenticado muestra la lista; si no, MsalGuard
+    // iniciará el flujo de login (redirect o popup según configuración).
+    if (this.router.url === '/') {
       this.router.navigate(['/items']);
     }
   }

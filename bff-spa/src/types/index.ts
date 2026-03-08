@@ -18,10 +18,23 @@ export interface CreateOrderDto {
   price: number;
 }
 
+export interface MenuItem {
+  id: number;
+  label: string;
+  route: string;
+  targetUrl: string | null;
+  isEmbedded: boolean;
+  icon: string | null;
+  requiredRole: string;
+  sortOrder: number;
+}
+
 export interface SessionData {
   sessionId: string;
   userId: string;
   createdAt: Date;
   expireAt: Date;
   lastAccessedAt: Date;
+  menuItems: MenuItem[];
+  sessionDurationMin: number;
 }

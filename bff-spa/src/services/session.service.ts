@@ -1,9 +1,8 @@
 import { v4 as uuidv4 } from 'uuid';
 import { Timestamp, DocumentReference } from '@google-cloud/firestore';
 import { getFirestore } from '../config/firestore';
-import { config } from '../config/env';
 import { logger } from '../config/logger';
-import { SessionData } from '../types/index';
+import { SessionData, MenuItem } from '../types/index';
 
 /**
  * Estructura almacenada en Firestore.
@@ -15,6 +14,8 @@ interface FirestoreSession {
   createdAt: Timestamp;
   expireAt: Timestamp;
   lastAccessedAt: Timestamp;
+  menuItems: MenuItem[];
+  sessionDurationMin: number;
 }
 
 function sessionRef(userId: string, sessionId: string): DocumentReference {
@@ -29,12 +30,16 @@ function sessionRef(userId: string, sessionId: string): DocumentReference {
 
 /**
  * Crea una nueva sesión en Firestore para el userId dado.
- * Si ya existe una sesión previa, se crea una nueva independiente.
+ * La duración y las opciones de menú provienen de Cloud SQL (app_config + app_menu_items).
  */
-export async function createSession(userId: string): Promise<SessionData> {
+export async function createSession(
+  userId: string,
+  sessionDurationMin: number,
+  menuItems: MenuItem[]
+): Promise<SessionData> {
   const sessionId = uuidv4();
   const now = new Date();
-  const expireAt = new Date(now.getTime() + config.sessionDurationMin * 60_000);
+  const expireAt = new Date(now.getTime() + sessionDurationMin * 60_000);
 
   const firestoreData: FirestoreSession = {
     sessionId,
@@ -42,11 +47,16 @@ export async function createSession(userId: string): Promise<SessionData> {
     createdAt: Timestamp.fromDate(now),
     expireAt: Timestamp.fromDate(expireAt),
     lastAccessedAt: Timestamp.fromDate(now),
+    menuItems,
+    sessionDurationMin,
   };
 
   await sessionRef(userId, sessionId).set(firestoreData);
 
-  logger.info({ userId, sessionId, expireAt: expireAt.toISOString() }, 'Session created');
+  logger.info(
+    { userId, sessionId, expireAt: expireAt.toISOString(), sessionDurationMin, menuCount: menuItems.length },
+    'Session created'
+  );
 
   return {
     sessionId,
@@ -54,6 +64,8 @@ export async function createSession(userId: string): Promise<SessionData> {
     createdAt: now,
     expireAt,
     lastAccessedAt: now,
+    menuItems,
+    sessionDurationMin,
   };
 }
 
@@ -65,7 +77,10 @@ export async function createSession(userId: string): Promise<SessionData> {
  */
 export async function validateSession(
   userId: string,
-  sessionId: string
+  sessionId: string,
+  sessionMaxMin: number,
+  sessionSliding: boolean,
+  sessionDurationMin: number
 ): Promise<SessionData | null> {
   const ref = sessionRef(userId, sessionId);
   const doc = await ref.get();
@@ -81,7 +96,7 @@ export async function validateSession(
   let expireAt = raw.expireAt.toDate();
 
   // ── Verificar límite absoluto ──────────────────────────────────────────────
-  const absoluteMax = new Date(createdAt.getTime() + config.sessionMaxMin * 60_000);
+  const absoluteMax = new Date(createdAt.getTime() + sessionMaxMin * 60_000);
   if (now >= absoluteMax) {
     await ref.delete();
     logger.info({ userId, sessionId }, 'Session exceeded absolute max duration — deleted');
@@ -96,10 +111,13 @@ export async function validateSession(
   }
 
   // ── Sliding session ────────────────────────────────────────────────────────
-  if (config.sessionSliding) {
+  // Usa la duración almacenada en Firestore (viene de Cloud SQL al crear la sesión)
+  const effectiveDurationMin = raw.sessionDurationMin ?? sessionDurationMin;
+
+  if (sessionSliding) {
     const slidingExpire = new Date(
       Math.min(
-        now.getTime() + config.sessionDurationMin * 60_000,
+        now.getTime() + effectiveDurationMin * 60_000,
         absoluteMax.getTime()
       )
     );
@@ -122,6 +140,8 @@ export async function validateSession(
     createdAt,
     expireAt,
     lastAccessedAt: now,
+    menuItems: raw.menuItems ?? [],
+    sessionDurationMin: raw.sessionDurationMin ?? sessionDurationMin,
   };
 }
 

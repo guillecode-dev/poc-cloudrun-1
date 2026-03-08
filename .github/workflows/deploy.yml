@@ -232,7 +232,7 @@ jobs:
               ALLOWED_ORIGINS=ALLOWED_ORIGINS:latest" \
             --set-env-vars "\
               NODE_ENV=production,\
-              SESSION_DURATION_MIN=60,\
+              SESSION_DURATION_MIN=30,\
               SESSION_SLIDING=true,\
               SESSION_MAX_MIN=240" \
             --min-instances 0 \
