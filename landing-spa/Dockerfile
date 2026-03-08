@@ -27,6 +27,9 @@ RUN rm -rf /etc/nginx/conf.d/default.conf
 # Copiar artefactos compilados de Angular
 COPY --from=builder /app/dist/landing-spa/browser /usr/share/nginx/html
 
+# Copiar plantilla de configuración runtime
+COPY env-config.js.template /usr/share/nginx/html/env-config.js.template
+
 # Copiar plantilla de configuración nginx
 COPY nginx.conf /etc/nginx/nginx.conf.template
 
@@ -42,5 +45,8 @@ EXPOSE 8080
 
 # Sustituir $PORT en la plantilla nginx y arrancar nginx
 CMD ["/bin/sh", "-c", \
-     "envsubst '${PORT}' < /etc/nginx/nginx.conf.template > /tmp/nginx.conf && \
-      nginx -c /tmp/nginx.conf -g 'daemon off;'"]
+     "envsubst '${AUTH_TENANT} ${AUTH_CLIENT_ID} ${AUTH_AUTHORITY} ${AUTH_REDIRECT_URI} ${AUTH_SCOPES} ${BFF_URL} ${DEMO_APP_URL}' \
+       < /usr/share/nginx/html/env-config.js.template \
+       > /usr/share/nginx/html/env-config.js \
+     && envsubst '${PORT}' < /etc/nginx/nginx.conf.template > /tmp/nginx.conf \
+     && nginx -c /tmp/nginx.conf -g 'daemon off;'"]

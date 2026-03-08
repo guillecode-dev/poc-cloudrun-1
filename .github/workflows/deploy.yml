@@ -252,6 +252,7 @@ jobs:
             --platform managed \
             --port ${{ matrix.port }} \
             --allow-unauthenticated \
+            --set-env-vars "AUTH_TENANT=bf19433a-9f42-4cc1-9e24-7ca887ee5869,AUTH_CLIENT_ID=2be339fa-b719-46a5-b849-7a27b6ed5e56,AUTH_AUTHORITY=https://login.microsoftonline.com/bf19433a-9f42-4cc1-9e24-7ca887ee5869/v2.0,AUTH_REDIRECT_URI=https://landing-spa-5gnr4kpezq-uc.a.run.app,AUTH_SCOPES=api://2be339fa-b719-46a5-b849-7a27b6ed5e56/access_as_user,BFF_URL=https://bff-spa-5gnr4kpezq-uc.a.run.app,DEMO_APP_URL=https://app-demo-spa-5gnr4kpezq-uc.a.run.app" \
             --min-instances 0 \
             --max-instances 5 \
             --cpu 1 \
@@ -269,6 +270,7 @@ jobs:
             --platform managed \
             --port ${{ matrix.port }} \
             --allow-unauthenticated \
+            --set-env-vars "AUTH_TENANT=bf19433a-9f42-4cc1-9e24-7ca887ee5869,AUTH_CLIENT_ID=2be339fa-b719-46a5-b849-7a27b6ed5e56,AUTH_AUTHORITY=https://login.microsoftonline.com/bf19433a-9f42-4cc1-9e24-7ca887ee5869/v2.0,AUTH_REDIRECT_URI=https://app-demo-spa-5gnr4kpezq-uc.a.run.app,AUTH_SCOPES=api://2be339fa-b719-46a5-b849-7a27b6ed5e56/access_as_user,BFF_URL=https://bff-spa-5gnr4kpezq-uc.a.run.app,LANDING_URL=https://landing-spa-5gnr4kpezq-uc.a.run.app" \
             --min-instances 0 \
             --max-instances 5 \
             --cpu 1 \
