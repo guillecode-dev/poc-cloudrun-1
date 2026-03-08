@@ -59,6 +59,15 @@ jest.mock('../services/session.service', () => ({
   deleteSession: (...args: any[]) => mockDeleteSession(...args),
 }));
 
+// Mock del servicio de menú (necesario porque handshake lo invoca)
+const mockGetMenuItems = jest.fn().mockResolvedValue([]);
+const mockGetSessionDurationMin = jest.fn().mockResolvedValue(30);
+
+jest.mock('../services/menu.service', () => ({
+  getMenuItems: (...args: any[]) => mockGetMenuItems(...args),
+  getSessionDurationMin: (...args: any[]) => mockGetSessionDurationMin(...args),
+}));
+
 // ── Imports (después de los mocks) ────────────────────────────────────────────
 
 import request from 'supertest';
@@ -74,12 +83,16 @@ describe('POST /session/handshake', () => {
   const app = createApp();
 
   beforeEach(() => {
+    mockGetMenuItems.mockResolvedValue([]);
+    mockGetSessionDurationMin.mockResolvedValue(30);
     mockCreateSession.mockResolvedValue({
       sessionId: TEST_SESSION_ID,
       userId: TEST_USER_ID,
       createdAt: new Date(),
       expireAt: TEST_EXPIRE_AT,
       lastAccessedAt: new Date(),
+      menuItems: [],
+      sessionDurationMin: 30,
     });
   });
 
@@ -101,13 +114,13 @@ describe('POST /session/handshake', () => {
     );
   });
 
-  it('llama a createSession con el userId del JWT', async () => {
+  it('llama a createSession con userId, sessionDurationMin y menuItems', async () => {
     await request(app)
       .post('/session/handshake')
       .set('Authorization', 'Bearer fake-jwt-token')
       .send({});
 
-    expect(mockCreateSession).toHaveBeenCalledWith(TEST_USER_ID);
+    expect(mockCreateSession).toHaveBeenCalledWith(TEST_USER_ID, 30, []);
   });
 
   it('acepta handoff_token opcional en el body', async () => {
@@ -117,7 +130,7 @@ describe('POST /session/handshake', () => {
       .send({ handoff_token: 'optional-cross-app-token' });
 
     expect(res.status).toBe(200);
-    expect(mockCreateSession).toHaveBeenCalledWith(TEST_USER_ID);
+    expect(mockCreateSession).toHaveBeenCalledWith(TEST_USER_ID, 30, []);
   });
 
   it('devuelve 401 si Authorization header falta', async () => {
@@ -199,13 +212,15 @@ describe('GET /session/validate', () => {
     expect(res.body.error).toMatch(/X-Session-Id/);
   });
 
-  it('llama a validateSession con userId y sessionId correctos', async () => {
+  it('llama a validateSession con userId, sessionId y parámetros de config', async () => {
     mockValidateSession.mockResolvedValue({
       sessionId: TEST_SESSION_ID,
       userId: TEST_USER_ID,
       createdAt: new Date(),
       expireAt: TEST_EXPIRE_AT,
       lastAccessedAt: new Date(),
+      menuItems: [],
+      sessionDurationMin: 60,
     });
 
     await request(app)
@@ -213,7 +228,14 @@ describe('GET /session/validate', () => {
       .set('Authorization', 'Bearer fake-jwt-token')
       .set('X-Session-Id', TEST_SESSION_ID);
 
-    expect(mockValidateSession).toHaveBeenCalledWith(TEST_USER_ID, TEST_SESSION_ID);
+    // validateSession ahora recibe los parámetros de configuración de sesión
+    expect(mockValidateSession).toHaveBeenCalledWith(
+      TEST_USER_ID,
+      TEST_SESSION_ID,
+      240,   // config.sessionMaxMin
+      true,  // config.sessionSliding
+      60     // config.sessionDurationMin
+    );
   });
 });
 
