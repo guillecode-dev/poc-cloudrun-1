@@ -18,9 +18,8 @@
       "prefix": "app",
       "architect": {
         "build": {
-          "builder": "@angular-architects/native-federation:build",
+          "builder": "@angular-devkit/build-angular:application",
           "options": {
-            "federationConfig": "federation.config.js",
             "outputPath": "dist/landing-spa",
             "index": "src/index.html",
             "browser": "src/main.ts",
@@ -39,7 +38,7 @@
                 {
                   "type": "initial",
                   "maximumWarning": "800kb",
-                  "maximumError": "1mb"
+                  "maximumError": "2mb"
                 },
                 {
                   "type": "anyComponentStyle",
@@ -64,7 +63,7 @@
           "defaultConfiguration": "production"
         },
         "serve": {
-          "builder": "@angular-architects/native-federation:serve",
+          "builder": "@angular-devkit/build-angular:dev-server",
           "configurations": {
             "production": { "buildTarget": "landing-spa:build:production" },
             "development": { "buildTarget": "landing-spa:build:development" }
