@@ -13,6 +13,7 @@ import {
 import { InteractionStatus, RedirectRequest } from '@azure/msal-browser';
 
 import { MenuService, MenuItem } from './services/menu.service';
+import { SessionService } from './services/session.service';
 
 @Component({
   selector: 'app-root',
@@ -26,6 +27,7 @@ export class AppComponent implements OnInit, OnDestroy {
   menuItems: MenuItem[] = [];
 
   private readonly destroy$ = new Subject<void>();
+  private handshakeDone = false;
 
   constructor(
     @Inject(MSAL_GUARD_CONFIG) private msalGuardConfig: MsalGuardConfiguration,
@@ -33,6 +35,7 @@ export class AppComponent implements OnInit, OnDestroy {
     private msalService: MsalService,
     private broadcastService: MsalBroadcastService,
     private menuService: MenuService,
+    private sessionService: SessionService,
   ) {}
 
   ngOnInit(): void {
@@ -50,7 +53,7 @@ export class AppComponent implements OnInit, OnDestroy {
       )
       .subscribe(() => this.syncLoginState());
 
-    // Suscribir al menú dinámico (se popula tras el handshake en APP_INITIALIZER)
+    // Suscribir al menú dinámico (se popula tras el handshake de sesión)
     this.menuService.menuItems$
       .pipe(takeUntil(this.destroy$))
       .subscribe(items => (this.menuItems = items));
@@ -91,6 +94,15 @@ export class AppComponent implements OnInit, OnDestroy {
 
     if (this.isLoggedIn && !this.msalService.instance.getActiveAccount()) {
       this.msalService.instance.setActiveAccount(accounts[0]);
+    }
+
+    if (this.isLoggedIn && !this.handshakeDone) {
+      this.handshakeDone = true;
+      this.sessionService.handshake()
+        .pipe(takeUntil(this.destroy$))
+        .subscribe({
+          error: err => console.warn('[AppComponent] Handshake failed', err),
+        });
     }
   }
 }

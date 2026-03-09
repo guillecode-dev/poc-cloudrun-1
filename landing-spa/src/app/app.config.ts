@@ -31,11 +31,8 @@ import {
   LogLevel,
   IPublicClientApplication,
 } from '@azure/msal-browser';
-import { firstValueFrom } from 'rxjs';
-
 import { routes } from './app.routes';
 import { authInterceptor } from './interceptors/auth.interceptor';
-import { SessionService } from './services/session.service';
 import { environment } from '../environments/environment';
 
 // ---------------------------------------------------------------------------
@@ -101,30 +98,14 @@ export function msalInterceptorConfigFactory(): MsalInterceptorConfiguration {
 // ---------------------------------------------------------------------------
 export function appInitializerFactory(
   msalService: MsalService,
-  sessionService: SessionService
 ): () => Promise<void> {
   return async () => {
     // 1. Inicializar MSAL (obligatorio en MSAL v3 antes de cualquier llamada)
     await msalService.instance.initialize();
 
     // 2. Procesar la respuesta OAuth/PKCE si viene de un redirect de Azure AD
+    //    Esto debe ocurrir antes de que el router arranque (MsalGuard lo necesita).
     await msalService.instance.handleRedirectPromise();
-
-    // 3. Establecer cuenta activa si hay sesión
-    const accounts = msalService.instance.getAllAccounts();
-    if (accounts.length === 0) return;
-
-    if (!msalService.instance.getActiveAccount()) {
-      msalService.instance.setActiveAccount(accounts[0]);
-    }
-
-    // 4. Handshake con el BFF: obtiene menú (Cloud SQL) + crea sesión (Firestore)
-    try {
-      await firstValueFrom(sessionService.handshake());
-    } catch (err) {
-      // El handshake es best-effort; no bloqueamos la carga si falla
-      console.warn('[appInitializer] Session handshake failed, continuing', err);
-    }
   };
 }
 
@@ -168,11 +149,11 @@ export const appConfig: ApplicationConfig = {
       multi: true,
     },
 
-    // APP_INITIALIZER: inicializa MSAL + handshake de sesión al arrancar
+    // APP_INITIALIZER: inicializa MSAL y procesa el redirect antes del routing
     {
       provide: APP_INITIALIZER,
       useFactory: appInitializerFactory,
-      deps: [MsalService, SessionService],
+      deps: [MsalService],
       multi: true,
     },
   ],
