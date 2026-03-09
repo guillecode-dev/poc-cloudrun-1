@@ -178,7 +178,7 @@ jobs:
         include:
           - service: bff-spa
             port: 8080
-            allow_unauthenticated: false   # BFF solo accesible desde SPAs / LB
+            allow_unauthenticated: true    # La auth la maneja el propio authMiddleware (Azure AD JWT)
           - service: landing-spa
             port: 8080
             allow_unauthenticated: true
@@ -217,7 +217,7 @@ jobs:
             --region "${{ secrets.GCP_REGION }}" \
             --platform managed \
             --port ${{ matrix.port }} \
-            --no-allow-unauthenticated \
+            --allow-unauthenticated \
             --service-account "${{ secrets.WIF_SA }}" \
             --set-secrets "\
               AUTH_TENANT=AUTH_TENANT:latest,\
