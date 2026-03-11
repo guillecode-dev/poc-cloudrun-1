@@ -42,6 +42,7 @@
   position: relative;
   display: flex;
   align-items: center;
+  align-self: stretch; /* ocupa toda la altura del header → top:100% queda en el borde inferior sin gap */
 }
 
 .shell-header__nav a {
@@ -88,7 +89,7 @@
 .nav-dropdown {
   display: none;
   position: absolute;
-  top: calc(100% + 12px);
+  top: 100%;
   left: 0;
   min-width: 160px;
   background: #ffffff;
