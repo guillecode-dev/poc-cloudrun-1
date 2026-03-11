@@ -7,22 +7,16 @@ import { provideRouter } from '@angular/router';
 import {
   provideHttpClient,
   withInterceptors,
-  withInterceptorsFromDi,
-  HTTP_INTERCEPTORS,
 } from '@angular/common/http';
 import { BrowserModule } from '@angular/platform-browser';
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
 
 import {
-  MsalModule,
-  MsalInterceptor,
   MsalGuard,
   MsalBroadcastService,
   MsalService,
   MSAL_INSTANCE,
   MSAL_GUARD_CONFIG,
-  MSAL_INTERCEPTOR_CONFIG,
-  MsalInterceptorConfiguration,
   MsalGuardConfiguration,
 } from '@azure/msal-angular';
 import {
@@ -78,21 +72,6 @@ export function msalGuardConfigFactory(): MsalGuardConfiguration {
 }
 
 // ---------------------------------------------------------------------------
-// MsalInterceptor — protege /api/* y /session/* del BFF
-// ---------------------------------------------------------------------------
-export function msalInterceptorConfigFactory(): MsalInterceptorConfiguration {
-  const protectedResourceMap = new Map<string, string[] | null>([
-    [`${environment.bffUrl}/api/`, environment.authScopes],
-    [`${environment.bffUrl}/session/`, environment.authScopes],
-  ]);
-
-  return {
-    interactionType: InteractionType.Redirect,
-    protectedResourceMap,
-  };
-}
-
-// ---------------------------------------------------------------------------
 // APP_INITIALIZER — inicializa MSAL y ejecuta el handshake con el BFF
 // Lee el menú y la duración de sesión desde Cloud SQL y los guarda en Firestore.
 // ---------------------------------------------------------------------------
@@ -121,10 +100,8 @@ export const appConfig: ApplicationConfig = {
     // Animaciones async (necesarias para Angular Material en componentes remotos)
     provideAnimationsAsync(),
 
-    // HTTP client: interceptor funcional propio + soporte DI para MsalInterceptor
     provideHttpClient(
       withInterceptors([authInterceptor]),
-      withInterceptorsFromDi()
     ),
 
     // MSAL providers
@@ -136,18 +113,9 @@ export const appConfig: ApplicationConfig = {
       provide: MSAL_GUARD_CONFIG,
       useFactory: msalGuardConfigFactory,
     },
-    {
-      provide: MSAL_INTERCEPTOR_CONFIG,
-      useFactory: msalInterceptorConfigFactory,
-    },
     MsalService,
     MsalGuard,
     MsalBroadcastService,
-    {
-      provide: HTTP_INTERCEPTORS,
-      useClass: MsalInterceptor,
-      multi: true,
-    },
 
     // APP_INITIALIZER: inicializa MSAL y procesa el redirect antes del routing
     {

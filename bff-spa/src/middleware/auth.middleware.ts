@@ -44,7 +44,9 @@ function verifyToken(token: string): Promise<JwtPayload> {
           `https://login.microsoftonline.com/${config.authTenant}/v2.0`,
           `https://sts.windows.net/${config.authTenant}/`,
         ],
-        audience: config.authAudience,
+        // Aceptar aud como URI completo (api://client-id) o solo GUID (client-id)
+        // Azure AD v1.0 emite api://client-id; v2.0 puede emitir solo el GUID
+        audience: [config.authAudience, config.authClientId],
         algorithms: ['RS256'],
       },
       (err, decoded) => {
