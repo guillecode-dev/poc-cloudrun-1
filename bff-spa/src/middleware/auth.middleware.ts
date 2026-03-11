@@ -9,7 +9,7 @@ let jwks: JwksClient | null = null;
 function getJwksClient(): JwksClient {
   if (!jwks) {
     jwks = jwksClient({
-      jwksUri: `${config.authAuthority}/discovery/v2.0/keys`,
+      jwksUri: `https://login.microsoftonline.com/${config.authTenant}/discovery/v2.0/keys`,
       cache: true,
       cacheMaxAge: 86_400_000, // 24 h — rotación de claves es poco frecuente
       rateLimit: true,
