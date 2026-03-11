@@ -12,4 +12,9 @@ export const DEMO_ROUTES: Routes = [
     loadComponent: () =>
       import('./orders/orders.component').then(m => m.OrdersComponent),
   },
+  {
+    path: 'providers',
+    loadComponent: () =>
+      import('./providers/providers.component').then(m => m.ProvidersComponent),
+  },
 ];

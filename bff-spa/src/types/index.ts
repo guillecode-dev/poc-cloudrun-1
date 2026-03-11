@@ -27,6 +27,8 @@ export interface MenuItem {
   icon: string | null;
   requiredRole: string;
   sortOrder: number;
+  parentId: number | null;
+  children: MenuItem[];
 }
 
 export interface SessionData {

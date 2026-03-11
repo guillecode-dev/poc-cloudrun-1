@@ -33,7 +33,15 @@
 
 .shell-header__nav {
   display: flex;
+  align-items: center;
   gap: 1.5rem;
+}
+
+/* Ítem de nav (wrapper para links y dropdowns) */
+.nav-item {
+  position: relative;
+  display: flex;
+  align-items: center;
 }
 
 .shell-header__nav a {
@@ -41,6 +49,7 @@
   font-size: 0.9rem;
   font-weight: 500;
   transition: color 0.15s;
+  white-space: nowrap;
 }
 
 .shell-header__nav a:hover,
@@ -49,6 +58,75 @@
   text-decoration: none;
   border-bottom: 2px solid #0078d4;
   padding-bottom: 2px;
+}
+
+/* Trigger de dropdown */
+.nav-dropdown-trigger {
+  color: #cdd6f4;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding-bottom: 2px;
+  transition: color 0.15s;
+}
+
+.nav-dropdown-trigger:hover {
+  color: #ffffff;
+}
+
+.nav-caret {
+  font-size: 0.7rem;
+  transition: transform 0.15s;
+}
+
+/* Dropdown panel (oculto por defecto, visible al hover del nav-item) */
+.nav-dropdown {
+  display: none;
+  position: absolute;
+  top: calc(100% + 12px);
+  left: 0;
+  min-width: 160px;
+  background: #ffffff;
+  border-radius: 6px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+  overflow: hidden;
+  z-index: 2000;
+}
+
+.nav-item:hover .nav-dropdown {
+  display: block;
+}
+
+.nav-item:hover .nav-caret {
+  transform: rotate(180deg);
+}
+
+.nav-dropdown a {
+  display: block;
+  padding: 0.6rem 1rem;
+  color: #1a2744;
+  font-size: 0.875rem;
+  font-weight: 500;
+  border-bottom: none;
+  transition: background 0.12s;
+}
+
+.nav-dropdown a:hover {
+  background: #f0f4ff;
+  color: #0f3460;
+  border-bottom: none;
+}
+
+.nav-dropdown a.active {
+  background: #e8f0fe;
+  color: #0f3460;
+  border-bottom: none;
+  font-weight: 600;
 }
 
 .shell-header__user {

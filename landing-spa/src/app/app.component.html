@@ -4,19 +4,34 @@
     <span class="shell-header__title">Corp PoC Cloud Run</span>
   </div>
 
-  <!-- Menú dinámico: opciones vienen de Cloud SQL (via BFF + handshake de sesión) -->
   <nav class="shell-header__nav" aria-label="Navegación principal">
     <ng-container *ngIf="menuItems.length > 0; else staticNav">
-      <a
-        *ngFor="let item of menuItems"
-        [routerLink]="item.route"
-        routerLinkActive="active"
-        [routerLinkActiveOptions]="{ exact: item.route === '/' }">
-        {{ item.label }}
-      </a>
+      <div *ngFor="let item of menuItems" class="nav-item">
+
+        <!-- Ítem sin hijos: enlace directo -->
+        <a *ngIf="item.children.length === 0"
+           [routerLink]="item.route"
+           routerLinkActive="active"
+           [routerLinkActiveOptions]="{ exact: item.route === '/' }">
+          {{ item.label }}
+        </a>
+
+        <!-- Ítem con hijos: dropdown -->
+        <span *ngIf="item.children.length > 0" class="nav-dropdown-trigger">
+          {{ item.label }} <span class="nav-caret">▾</span>
+        </span>
+        <div *ngIf="item.children.length > 0" class="nav-dropdown" role="menu">
+          <a *ngFor="let child of item.children"
+             [routerLink]="child.route"
+             routerLinkActive="active"
+             role="menuitem">
+            {{ child.label }}
+          </a>
+        </div>
+
+      </div>
     </ng-container>
 
-    <!-- Menú estático de fallback (antes del login / si falla el handshake) -->
     <ng-template #staticNav>
       <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Inicio</a>
       <a routerLink="/profile" routerLinkActive="active" *ngIf="isLoggedIn">Perfil</a>
