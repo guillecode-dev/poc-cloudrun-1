@@ -1,4 +1,4 @@
-import { HttpInterceptorFn, HttpRequest, HttpHandlerFn } from '@angular/common/http';
+import { HttpInterceptorFn, HttpRequest, HttpHandlerFn, HttpErrorResponse } from '@angular/common/http';
 import { inject } from '@angular/core';
 import { MsalService } from '@azure/msal-angular';
 import { from, throwError } from 'rxjs';
@@ -45,8 +45,12 @@ export const authInterceptor: HttpInterceptorFn = (
       return next(authReq);
     }),
     catchError(err => {
-      console.error('[authInterceptor] Token acquisition failed:', err);
-      // Reintento sin token en lugar de bloquear la petición
+      // Errores HTTP (401, 403, 500…) no son fallos de adquisición de token — re-lanzar
+      if (err instanceof HttpErrorResponse) {
+        return throwError(() => err);
+      }
+      // Error real de acquireTokenSilent (sin cuenta, interacción requerida, etc.)
+      console.error('[authInterceptor] acquireTokenSilent failed:', err);
       return next(req);
     })
   );

@@ -39,7 +39,11 @@ function verifyToken(token: string): Promise<JwtPayload> {
       token,
       getKey,
       {
-        issuer: `https://login.microsoftonline.com/${config.authTenant}/v2.0`,
+        // Aceptar tokens v1.0 (sts.windows.net) y v2.0 (login.microsoftonline.com)
+        issuer: [
+          `https://login.microsoftonline.com/${config.authTenant}/v2.0`,
+          `https://sts.windows.net/${config.authTenant}/`,
+        ],
         audience: config.authAudience,
         algorithms: ['RS256'],
       },
